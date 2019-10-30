@@ -1,0 +1,37 @@
+#!/usr/bin/env snakemake
+
+# different usages:
+# snakemake -s Snakefile --cluster-config cluster_config.yaml --cluster "sbatch -J '{rule}'" --jobs N
+#
+path="/tsl/data/reads/jjones/dingp_rnaseq_bgiseq500_seti_eti_2018"
+
+samples, resamples, fastq = glob_wildcards(path + "/{dir1}/{dir2}/raw/{file}.fq.gz")
+print(samples, resamples, fastq)
+
+def dependencies():
+     """Returns list of required module names."""
+     return ["kallisto-0.45.0"]
+
+rule check_software_modules:
+        output: touch("check_software_modules.done")
+        params: modules=dependencies()
+        message: "Loading required modules {params.modules}."
+        shell: "source {params.modules}"
+
+rule kallisto:
+    input:
+        "/tsl/data/reads/jjones/dingp_rnaseq_bgiseq500_seti_eti_2018/{sample}/{resample}/raw/{basename}.fq.gz"
+    output:
+        "results/{sample}/{resample}/{basename}_kallisto_bam"
+    message:"Running kallisto with input file {input}. Output file is : {output}"
+    params: modules=dependencies()
+    shell:
+        "/tsl/software/testing/kallisto/0.45.0/x86_64/bin/kallisto quant -i /hpc-home/dingp/kallisto_Ram/AtRTDv2_QUASI_kallisto_index_v2  -o {output} --genomebam --gtf /hpc-home/shrestha/workarea/pingtao/rnaseq_bgiseq500_seti/AtRTDv2_QUASI_19April2016.gtf -b 100 --single -l 170 -s 10 {input}"
+
+rule default:
+    input:
+        expand("results/{sample}/{resample}/{basename}_kallisto_bam", zip, sample=samples, resample=resamples, basename=fastq)
+
+
+        # this command also works
+        #["results/{sample}/{resample}/{basename}_kallisto.bam".format(sample=sample, resample=resample, basename=basename) for sample, resample, basename in zip(samples, resamples, fastq)]
